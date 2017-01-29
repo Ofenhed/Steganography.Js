@@ -2,6 +2,8 @@ dist
 dist-*
 cabal-dev
 *.o
+*.js_o
+*.js_hi
 *.hi
 *.chi
 *.chs.h
