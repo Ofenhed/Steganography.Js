@@ -16,8 +16,26 @@ Build-Type:          Simple
 Executable SteganographyJs
   Main-Is:           Main.hs
   Default-Language:  Haskell2010
-  hs-source-dirs:      src
-  Build-Depends:     Steganography
+  hs-source-dirs:      src,Steganography/src/
+  Build-Depends:     base>= 4 && <5,
+                     array,
+                     asn1-encoding,
+                     asn1-types,
+                     base64-bytestring,
+                     binary,
+                     bitstring,
+                     BitStringRandomMonad >= 0.2.0.1,
+                     bytestring,
+                     console-program,
+                     cryptonite,
+                     JuicyPixels,
+                     Lazy-Pbkdf2 >= 2.1.0,
+                     memory,
+                     pem,
+                     time,
+                     transformers,
+                     x509,
+                     x509-store
 
 Source-Repository head
   Type:       git
