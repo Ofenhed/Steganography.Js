@@ -18,7 +18,7 @@ import DummyContainer (DummyContainer(..))
 import GHCJS.Marshal (fromJSVal)
 import GHCJS.DOM (syncPoint, currentDocument, currentWindow)
 import GHCJS.DOM.Types
-       (HTMLParagraphElement(..), HTMLSpanElement(..), HTMLDivElement(..), HTMLInputElement(..), HTMLImageElement(..), unsafeCastTo, castTo, JSString(..), toJSString, fromJSString, ToJSString(..), FromJSString(..), HTMLButtonElement(..), unStringOrArrayBuffer, toJSVal, fromJSVal)
+       (HTMLParagraphElement(..), HTMLSpanElement(..), HTMLDivElement(..), HTMLInputElement(..), HTMLImageElement(..), unsafeCastTo, castTo, JSString(..), toJSString, fromJSString, ToJSString(..), FromJSString(..), HTMLButtonElement(..), unStringOrArrayBuffer, toJSVal, fromJSVal, JSVal(..))
 import GHCJS.DOM.Document (getBodyUnsafe, createTextNode, createElement)
 import GHCJS.DOM.Element (setInnerHTML)
 import GHCJS.DOM.Node (appendChild, getParentElement, setTextContent, removeChild)
@@ -53,8 +53,10 @@ import qualified Data.JSString.Text as T
 foreign import javascript unsafe "window.btoa($1)" btoa :: JSString -> JSString
 foreign import javascript unsafe "window.atob($1)" atob :: JSString -> JSString
 foreign import javascript unsafe "window.performance.now ? window.performance.now() : Date.now()" timeEntropy :: IO (Double)
-foreign import javascript unsafe "Math.random()" randomEntropy :: IO (Double)
+foreign import javascript unsafe "(window.crypto && window.crypto.getRandomValues) ? function() { var buf = new ArrayBuffer(8); var ret = new Float64Array(buf); var rnd = new Uint8Array(buf); window.crypto.getRandomValues(rnd); return ret[0]; }() : Math.random()" randomEntropy :: IO (Double)
 foreign import javascript unsafe "alert($1)" alert :: JSString -> IO ()
+foreign import javascript unsafe "MyRandom.addSalt($1)" improveRandom :: JSString -> IO ()
+foreign import javascript unsafe "MyRandom.getRandom($1)" getRandom :: Int -> IO (JSString)
 
 foreign export javascript testsomething :: IO Int
 testsomething = return 1337
@@ -122,12 +124,14 @@ thirdState hashData imageData = do
   body <- fullScreenBody
   setInnerHTML body $ Just "<h1>Third state</h1>"
   text <- createTextNode doc $ "Hash: " ++ show hashData
+  text2 <- createTextNode doc $ ""
   appendChild body text
+  appendChild body text2
   image <- createElement doc "img" >>= unsafeCastTo HTMLImageElement
   E.setAttribute image "src" $ T.append (base64prefix $ Just $ T.pack "image/png") $ base64encode imageData
   Right returnedData <- doEncrypt (LC8.pack $ T.unpack imageData) DummyContainer (LC8.pack "nyckel") 10 (LC8.pack "Min hemliga data") (LC8.pack "salt") LC8.empty C8.empty
   --returnedData <- doEncrypt (LC8.pack $ T.unpack imageData) PngImageSpawner (LC8.pack "nyckel") 10 (LC8.pack "Min hemliga data") (LC8.pack "salt") LC8.empty C8.empty
-  setTextContent text $ Just $ toJSString $ LC8.unpack returnedData
+  setTextContent text2 $ Just $ toJSString $ LC8.unpack returnedData
   appendChild body image
   --case returnedData of
   --  Left msg -> setTextContent (fromJust text) $ Just msg
@@ -183,24 +187,25 @@ prompt question nextState = do
   return ()
 
 createRandom secret = do
+  improveRandom secret
   Just doc <- currentDocument
   body <- fullScreenBody
   newParagraph <- createElement doc "p" >>= unsafeCastTo HTMLParagraphElement
   button <- createElement doc "button" >>= unsafeCastTo HTMLButtonElement
+  E.setAttribute button "disabled" "True"
   setTextContent button $ Just "OK"
-  text <- createTextNode doc ""
+  text <- createTextNode doc "In this stage we don't trust the random generator of the browser. To enhance the random data from the browser, we need some random data from you. Moving the mouse around and pressing buttons will add to the random data pool."
   text2 <- createTextNode doc ""
   appendChild newParagraph $ text
   appendChild newParagraph $ text2
   appendChild body $ newParagraph
   appendChild body $ button
-  shaKey <- newMVar (SHA.sha512 $ LC8.pack secret, 0)
-
+  iterCount <- newMVar 0
   let addData d = do
-        time <- liftIO $ timeEntropy
-        random <- liftIO $ randomEntropy
-        currentData <- liftIO $ modifyMVar shaKey (\(prev, count) -> return ((SHA.sha512 $ LC8.pack $ show (SHA.bytestringDigest prev, d, random, time), count + 1), (show count) ++ " iterations, last added: " ++ show (d, random, time)))
-        setTextContent text2 $ Just currentData
+        liftIO $ improveRandom $ toJSString d
+        current <- liftIO $ modifyMVar iterCount (\prev -> return (1 + prev, 1 + prev))
+        when (current == 3000) $ E.removeAttribute button "disabled"
+        setTextContent text2 $ Just ("Current iteration count: " ++ show current)
 
   releaser <- do
     body_ <- getBodyUnsafe doc
@@ -223,7 +228,7 @@ createRandom secret = do
       syncPoint
   liftIO $ on button G.click $ do
     liftIO $ releaser
-    key <- liftIO $ withMVar shaKey (\(prev, count) -> return $ SHA.bytestringDigest prev)
+    key <- liftIO $ getRandom 20
     liftIO $ receiveFile (Just $ T.pack "image/png") $ thirdState key
   on doc G.mouseMove $ do
       (x, y) <- mouseClientXY

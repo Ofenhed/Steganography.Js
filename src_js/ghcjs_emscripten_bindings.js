@@ -8,7 +8,7 @@ function emscripten_ptr_to_haskell_ptr(ptr, /* optional */ length) {
 }
 
 function write_emscripten_ptr_to_haskell_ptr(e_ptr, h_ptr, length) {
-  h_ptr.u8.set(Module.HEAPU8.slice(e_ptr, e_ptr + length));
+  h_ptr.u8.set(Module.HEAPU8.subarray(e_ptr, e_ptr + length));
 }
 
 function c_ptr(ptr) {
@@ -93,8 +93,6 @@ function str2ab(str) {
 //}
 //
 //
-h$cryptonite_cpu_has_rdrand = function() { return 1; }
-h$cryptonite_get_rand_bytes = function(ptr, ignore, count) {}
 
 
 h$cryptonite_sha1_init = runFunc(_cryptonite_sha1_init, "cryptonite_sha1_init", [ptr, null]);
