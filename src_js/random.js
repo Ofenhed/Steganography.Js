@@ -1,8 +1,33 @@
+function stringToUint(string) {
+  if (typeof this.encoder !== "undefined") {
+    return this.encoder.encode(string);
+  }
+  if (typeof TextEncoder !== "undefined") {
+    this.encoder = new TextEncoder("ascii");
+    return stringToUint(string);
+  }
+  var charList = string.split(''),
+    uintArray = [];
+  for (var i = 0; i < charList.length; i++) {
+    uintArray.push(charList[i].charCodeAt(0));
+  }
+  return new Uint8Array(uintArray);
+}
 
+function uintToString(uintArray) {
+  if (typeof this.decoder !== "undefined") {
+    return this.decoder.decode(uintArray);
+  }
+  if (typeof TextDecoder !== "undefined") {
+    this.decoder = new TextDecoder("ascii");
+    return uintToString(uintArray);
+  }
+  var decodedString = String.fromCharCode.apply(null, uintArray);
+  return decodedString;
+}
 var MyRandom = new class {
   constructor() {
     this.sha512 = function(data) {
-      var encoder = new TextEncoder("ascii");
       var stackTop = Runtime.stackSave();
       var state = Runtime.stackAlloc(256);
       var maxlength = 0;
@@ -17,7 +42,7 @@ var MyRandom = new class {
       for (var key in data) {
         var current = data[key];
         if (typeof current === "string") {
-          current = encoder.encode(current);
+          current = stringToUint(current);
         }
         Module.HEAPU8.set(current, stackData);
         _cryptonite_sha512_update(state, stackData, data[key].length);
@@ -46,7 +71,7 @@ var MyRandom = new class {
       result.set(this.getSingleRandom().subarray(0, result.length - i), i);
     }
     if (typeof target === "number") {
-      return new TextDecoder("ascii").decode(result);
+      return uintToString(result);
     }
   }
   addSalt(salt) {
