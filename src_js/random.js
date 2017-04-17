@@ -89,7 +89,9 @@ h$cryptonite_get_rand_bytes = function(ptr, ignore, count) {
   if (count == ptr.length) {
     MyRandom.getRandom(ptr);
   } else {
-    var result = MyRandom.getRandom(count);
-    ptr.set(result);
+    var result = new Uint8Array(count);
+    MyRandom.getRandom(result);
+    ptr.u8.set(result);
   }
+  return count;
 }

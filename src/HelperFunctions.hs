@@ -1,4 +1,4 @@
-module HelperFunctions (receiveFile, prompt, fullScreenBody, base64encode, base64decode, base64prefix, FileUploadOptions(..), defaultFileUploadOptions, appendLineBreak, showMenu, setTitle) where
+module HelperFunctions (receiveFile, prompt, fullScreenBody, base64encode, base64decode, base64prefix, FileUploadOptions(..), defaultFileUploadOptions, appendLineBreak, showMenu, setTitle, appendText, appendDownloadLink) where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
@@ -7,7 +7,9 @@ import GHCJS.DOM (currentDocument)
 import GHCJS.DOM.Document (getBodyUnsafe, getHeadUnsafe, createTextNode, createElement)
 import GHCJS.DOM.EventM (on, uiKeyCode)
 import GHCJS.DOM.Node (appendChild, setTextContent)
-import GHCJS.DOM.Types (HTMLInputElement(..), unsafeCastTo, toJSVal, JSString, toJSString, fromJSString, ToJSString, FromJSString, HTMLButtonElement(..))
+import GHCJS.DOM.Types (HTMLInputElement(..), unsafeCastTo, toJSVal, JSString, toJSString, fromJSString, ToJSString, FromJSString, HTMLButtonElement(..), HTMLAnchorElement(..))
+import GHCJS.DOM.HTMLHyperlinkElementUtils (setHref)
+import GHCJS.DOM.HTMLAnchorElement (setDownload)
 import Control.Monad.Trans.Class (lift)
 
 import qualified Data.Text as T
@@ -43,9 +45,23 @@ appendLineBreak at = do
   linebreak <- createElement doc "br"
   appendChild at linebreak
 
-data FileUploadOptions = FileUploadOptions { skipCaption :: Maybe T.Text, fileType :: Maybe T.Text, text :: Maybe T.Text } deriving (Show)
+appendText at content = do
+  Just doc <- currentDocument
+  text <- createTextNode doc content
+  appendChild at text
+
+data FileUploadOptions = FileUploadOptions { skipCaption :: Maybe T.Text, fileType :: Maybe (T.Text, Bool), text :: Maybe T.Text } deriving (Show)
 
 defaultFileUploadOptions = FileUploadOptions Nothing Nothing Nothing
+
+appendDownloadLink at title filename content = do
+  Just doc <- currentDocument
+  downloadLink <- createElement doc "a" >>= unsafeCastTo HTMLAnchorElement
+  setHref downloadLink $ T.concat [base64prefix $ Just $ T.pack "application/octet-stream", base64encode content]
+  setDownload downloadLink filename
+  setTextContent downloadLink $ Just title
+  appendChild at downloadLink
+  return ()
 
 receiveFile :: FileUploadOptions -> (Maybe T.Text -> IO ()) -> IO ()
 receiveFile options nextState = do
@@ -58,7 +74,7 @@ receiveFile options nextState = do
     return ()
   button <- createElement doc "input" >>= unsafeCastTo HTMLInputElement
   E.setAttribute button "type" "file"
-  when (isJust $ fileType options) $ E.setAttribute button "accept" $ fromJust $ fileType options
+  when (isJust $ fileType options) $ E.setAttribute button "accept" $ fst $ fromJust $ fileType options
   appendChild body button
   on button G.change $ do
     Just files <- Input.getFiles button
@@ -69,7 +85,9 @@ receiveFile options nextState = do
       Just s <- FileReader.getResult reader
       s' <- lift $ toJSVal s
       let fileData = T.textFromJSVal s'
-      let decodedData = trimBase64prefix (fileType options) fileData
+      let decodedData = if (isJust $ fileType options) && (snd $ fromJust $ fileType options)
+                           then trimBase64prefix (Just $ fst $ fromJust $ fileType options) fileData
+                           else trimBase64prefix Nothing fileData
       when (isNothing (fileType options) || isJust decodedData) $ do liftIO $ nextState $ Just $ base64decode $ fromJust decodedData
       return ()
     mapM (\x -> FileReader.readAsDataURL reader (Just x)) files
@@ -102,17 +120,15 @@ setTitle newTitle = do
 
 type MenuItem = (T.Text, IO ())
 
-showMenu :: [MenuItem] -> IO ()
-showMenu items = do
+showMenu target items = do
   Just doc <- currentDocument
-  body <- fullScreenBody
   let showElements [] = return ()
       showElements ((text, action):xs) = do
         button <- createElement doc "button" >>= unsafeCastTo HTMLButtonElement
         setTextContent button $ Just text
         liftIO $ on button G.click $ liftIO action
-        appendChild body button
-        appendLineBreak body
+        appendChild target button
+        appendLineBreak target
         showElements xs
   showElements items
 

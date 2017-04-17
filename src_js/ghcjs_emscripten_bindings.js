@@ -127,3 +127,6 @@ h$cryptonite_sha512_update = runFunc(_cryptonite_sha512_update, "cryptonite_sha5
 h$cryptonite_skein512_finalize = runFunc(_cryptonite_skein512_finalize, "cryptonite_skein512_finalize", [ptr, null, fwd, ptr, null])
 h$cryptonite_skein512_init = runFunc(_cryptonite_skein512_init, "cryptonite_skein512_init", [ptr, null, fwd])
 h$cryptonite_skein512_update = runFunc(_cryptonite_skein512_update, "cryptonite_skein512_update", [ptr, null, ptr, null, fwd])
+h$cryptonite_ed25519_publickey = runFunc(_cryptonite_ed25519_publickey, "cryptonite_ed25519_publickey", [ptr, null, ptr, null])
+h$cryptonite_ed25519_sign = runFunc(_cryptonite_ed25519_sign, "cryptonite_ed25519_sign", [ptr, null, fwd, ptr, null, ptr, null, ptr, null])
+h$cryptonite_ed25519_sign_open = runFunc(_cryptonite_ed25519_sign_open, "cryptonite_ed25519_sign_open", [ptr, null, fwd, ptr, null, ptr, null])
