@@ -25,7 +25,6 @@ import HelperFunctions
 import Random
 
 foreign import javascript unsafe "window.performance.now ? window.performance.now() : Date.now()" timeEntropy :: IO (Double)
-foreign import javascript unsafe "(window.crypto && window.crypto.getRandomValues) ? function() { var buf = new ArrayBuffer(8); var ret = new Float64Array(buf); var rnd = new Uint8Array(buf); window.crypto.getRandomValues(rnd); return ret[0]; }() : Math.random()" randomEntropy :: IO (Double)
 foreign import javascript unsafe "alert($1)" alert :: JSString -> IO ()
 
 main = do
@@ -98,6 +97,8 @@ generateKeys = do
                  (T.pack "No", do
                    (secretKey, publicKey) <- generateKeyPair
                    newBody <- fullScreenBody
+                   appendText newBody $ T.pack "Download these files. The secret file is yours and only yours and should NEVER be shared. The public key is the key you send to people you which to communicate with."
+                   appendLineBreak newBody
                    appendDownloadLink newBody (T.pack "Secret key") (T.pack "steganography_secret.sstk") $ T.pack $ C8.unpack $ encodeSecretKey secretKey
                    appendLineBreak newBody
                    appendDownloadLink newBody (T.pack "Public key") (T.pack "steganography_public.pstk") $ T.pack $ C8.unpack $ encodePublicKey publicKey
