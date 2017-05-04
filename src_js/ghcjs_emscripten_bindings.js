@@ -1,10 +1,5 @@
 function emscripten_ptr_to_haskell_ptr(ptr, /* optional */ length) {
-  var str = Pointer_stringify(ptr, length);
-  var iArr = intArrayFromString(str, false);
-  _free(str);
-  var array = h$newByteArray(iArr.length);
-  array.u8.set(iArr);
-  return array;
+  return h$wrapBuffer(Module.buffer, true, ptr, length);
 }
 
 function write_emscripten_ptr_to_haskell_ptr(e_ptr, h_ptr, length) {

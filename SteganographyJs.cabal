@@ -35,7 +35,9 @@ Executable SteganographyJs
                      time,
                      transformers,
                      x509,
-                     x509-store
+                     x509-store,
+                     SHA,
+                     ghcjs-dom-jsffi
 
 Source-Repository head
   Type:       git

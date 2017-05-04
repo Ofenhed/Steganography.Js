@@ -3,6 +3,8 @@ module Main where
 import Data.Maybe (fromJust)
 import Control.Monad (when)
 
+import PngCanvasContainer
+
 import Steganography (doEncrypt, doDecrypt)
 import DummyContainer (DummyContainer(..))
 import EccKeys (generateKeyPair, encodeSecretKey, encodePublicKey)
@@ -22,6 +24,7 @@ import qualified Data.Text as T
 import qualified Data.JSString.Text as T
 
 import HelperFunctions
+import PngCanvasContainer (CanvasPngImageType(..))
 import Random
 
 foreign import javascript unsafe "window.performance.now ? window.performance.now() : Date.now()" timeEntropy :: IO (Double)
@@ -61,7 +64,7 @@ encrypter = do
               Just doc <- currentDocument
               body <- fullScreenBody
               setTextContent body $ Just $ T.pack "Working"
-              encrytedData <- doEncrypt (t2lb imageData) DummyContainer (t2lb keyData) 10 (t2lb hiddenData) (t2lb salt) (mt2lb maybeTargetKey) (mt2b maybeSignKey)
+              encrytedData <- doEncrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 10 (t2lb hiddenData) (t2lb salt) (mt2lb maybeTargetKey) (mt2b maybeSignKey)
               case encrytedData of
                 Right result -> setTextContent body $ Just $ T.pack $ LC8.unpack result
                 Left error -> setTextContent body $ Just $ T.pack error
@@ -81,7 +84,7 @@ decrypter = do
             Just doc <- currentDocument
             body <- fullScreenBody
             setTextContent body $ Just $ T.pack "Working"
-            decryptedData <- doDecrypt (t2lb imageData) DummyContainer (t2lb keyData) 10 (t2lb salt) (mt2b maybePrivateKey) (mt2lb maybeSignedKey)
+            decryptedData <- doDecrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 10 (t2lb salt) (mt2b maybePrivateKey) (mt2lb maybeSignedKey)
             case decryptedData of
               Right result -> setTextContent body $ Just $ T.pack $ LC8.unpack result
               Left error -> setTextContent body $ Just $ T.pack error
