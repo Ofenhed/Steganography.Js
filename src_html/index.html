@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" 
+          content="width=device-width, initial-scale=1.0, user-scalable=no">    <meta charset="utf-8">
+  <script language="javascript">
+(function() {
+function loadError() {
+  alert("Failed to load javascripts");
+}
+var importScript = (function (oHead) {
+
+  function loadError (oError) {
+    throw new URIError("The script " + oError.target.src + " is not accessible.");
+  }
+
+  return function (sSrc, fOnload) {
+    return function() {
+      var oScript = document.createElement("script");
+      oScript.type = "text/javascript";
+      oScript.onerror = loadError;
+      if (fOnload) { oScript.onload = fOnload }
+      oHead.appendChild(oScript);
+      oScript.src = sSrc;
+    }
+  }
+
+})(document.head || document.getElementsByTagName("head")[0]);
+function loadWasm(callback) {
+  return function() {
+    if (typeof Module === 'undefined') Module = {}
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'cryptonite.wasm', true);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = function() {
+      Module.wasmBinary = xhr.response;
+
+      importScript("cryptonite.js", callback)();
+    };
+    xhr.send(null);
+  }
+}
+importScript("rts.js",
+  importScript("lib.js",
+    importScript("random.js",
+      importScript("out.js",
+        loadWasm(
+          importScript("ghcjs_emscripten_bindings.js",
+            importScript("runmain.js")))))))();
+})();
+  </script>
+  </head>
+  <body>
+  </body>
+  <!--<script language="javascript" src="runmain.js" defer></script>-->
+</html>

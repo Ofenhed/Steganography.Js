@@ -21,6 +21,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.ST.Unsafe (unsafeIOToST)
 import System.IO.Unsafe (unsafePerformIO)
 import JavaScript.TypedArray (index)
+import Data.Bits ((.&.))
 
 import qualified GHCJS.DOM.HTMLImageElement as Image
 import qualified GHCJS.DOM.HTMLCanvasElement as Canvas
@@ -45,33 +46,35 @@ foreign import javascript unsafe "console.log($1)" console_log :: JSString -> IO
 
 instance SteganographyContainerOptions CanvasPngImageType (WithPixelInfoType CanvasPngImage) where
   createContainer options imagedata = do
-    Just doc <- unsafeIOToST $ currentDocument
-    body <- unsafeIOToST $ getBodyUnsafe doc
-    img <- unsafeIOToST $ createElement doc "img" >>= unsafeCastTo HTMLImageElement
-    canvas <- unsafeIOToST $ createElement doc "canvas" >>= unsafeCastTo HTMLCanvasElement
-    unsafeIOToST $ appendChild body img
-    unsafeIOToST $ appendChild body canvas
-    context <- unsafeIOToST $ getContext canvas
-    unsafeIOToST $ on img G.load $ do
-      Image.getNaturalHeight img >>= (Canvas.setHeight canvas) . fromIntegral
-      Image.getNaturalWidth img >>= (Canvas.setWidth canvas) . fromIntegral
-      Canvas.drawImage context img 0 0
-      removeChild_ body img
-    unsafeIOToST $ Image.setSrc img $ T.concat [base64prefix $ Just $ T.pack $ "image/png", base64encode $ T.pack $ LBS.unpack imagedata]
+    (canvas, context) <- unsafeIOToST $ do
+        Just doc <- currentDocument
+        body <- getBodyUnsafe doc
+        img <- createElement doc "img" >>= unsafeCastTo HTMLImageElement
+        canvas <- createElement doc "canvas" >>= unsafeCastTo HTMLCanvasElement
+        appendChild body img
+        appendChild body canvas
+        context <- getContext canvas
+        on img G.load $ do
+          Image.getNaturalHeight img >>= (Canvas.setHeight canvas) . fromIntegral
+          Image.getNaturalWidth img >>= (Canvas.setWidth canvas) . fromIntegral
+          Canvas.drawImage context img 0 0
+          removeChild_ body img
+        Image.setSrc img $ T.concat [base64prefix $ Just $ T.pack $ "image/png", base64encode $ T.pack $ LBS.unpack imagedata]
+        let waitForImage = do
+              waitForAnimationFrame
+              hasImg <- contains body $ Just img
+              console_log $ toJSString $ T.concat [T.pack "Body contains img: ", T.pack $ show $ hasImg]
+              when (hasImg) waitForImage
+        waitForImage
+        return (canvas, context)
     let image = (CanvasPngImage canvas context)
-    let waitForImage = do
-          waitForAnimationFrame
-          hasImg <- contains body $ Just img
-          console_log $ toJSString $ T.concat [T.pack "Body contains img: ", T.pack $ show $ hasImg]
-          when (hasImg) waitForImage
-    unsafeIOToST waitForImage
     state <- createCryptoState False image
     return $ Right $ WithPixelInfoType image state
 
 
 instance ImageContainer (CanvasPngImage) where
   getBounds (CanvasPngImage canvas context) = (fromIntegral $ unsafePerformIO $ Canvas.getWidth canvas, fromIntegral $ unsafePerformIO $ Canvas.getHeight canvas, 3)
-  getPixelLsb (CanvasPngImage canvas context) (x, y, c) = error "Can't get pixel LSB yet"
+  getPixelLsb state pos = if ((getPixel state pos) .&. 1) == 1 then True else False
   getPixel (CanvasPngImage canvas context) (x, y, c) = unsafePerformIO $ do
     pixel <- Canvas.getImageData context (fromIntegral x) (fromIntegral y) 1 1
     pixelData <- getData pixel
