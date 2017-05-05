@@ -10,29 +10,30 @@ import Container.LosslessImage.ImageHandler (createCryptoState)
 import SteganographyContainer (SteganographyContainerOptions(..))
 import HelperFunctions (base64encode, base64prefix)
 
-import GHCJS.DOM (currentDocument, syncPoint, waitForAnimationFrame)
-import GHCJS.DOM.Document (getBodyUnsafe, createElement)
-import GHCJS.DOM.Types (unsafeCastTo, HTMLImageElement(..), HTMLCanvasElement(..), CanvasRenderingContext2D(..), RenderingContext(..), toJSString, fromJSString, unUint8ClampedArray, fromJSVal, JSString(..))
-import GHCJS.DOM.ImageData (getData)
-import GHCJS.DOM.Node (appendChild, removeChild_, contains)
-import GHCJS.DOM.EventM (on)
-import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.ST.Unsafe (unsafeIOToST)
-import System.IO.Unsafe (unsafePerformIO)
-import JavaScript.TypedArray (index)
+import Control.Monad (when)
 import Data.Bits ((.&.))
+import Data.Word (Word8, Word32)
+import GHCJS.DOM (currentDocument, syncPoint, waitForAnimationFrame)
+import GHCJS.DOM.Document (getBodyUnsafe, createElement)
+import GHCJS.DOM.EventM (on)
+import GHCJS.DOM.Node (appendChild, removeChild_, contains)
+import GHCJS.DOM.Types (unsafeCastTo, HTMLImageElement(..), HTMLCanvasElement(..), CanvasRenderingContext2D(..), RenderingContext(..), toJSString, fromJSString, Uint8ClampedArray(..), fromJSVal, JSString(..), toUint8Array)
+import System.IO.Unsafe (unsafePerformIO)
 
 import qualified GHCJS.DOM.HTMLImageElement as Image
 import qualified GHCJS.DOM.HTMLCanvasElement as Canvas
 import qualified GHCJS.DOM.CanvasRenderingContext2D as Canvas
+import qualified GHCJS.DOM.ImageData as ImageData
 import qualified Data.JSString.Text as T
 import qualified Data.Text as T
+import qualified JavaScript.TypedArray as TA
 import qualified GHCJS.DOM.Element as E
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified GHCJS.DOM.GlobalEventHandlers as G
 
-data CanvasPngImage = CanvasPngImage HTMLCanvasElement CanvasRenderingContext2D
+data CanvasPngImage = CanvasPngImage HTMLCanvasElement Uint8ClampedArray (Word32, Word32, Word8)
 data CanvasPngImageType = CanvasPngImageSpawner
                   | CanvasPngImageSpawnerFast
 data MutableCanvasPngImage s = MutableCanvasPngImage ()
@@ -43,10 +44,12 @@ getContext canvas = do
   return context'
 
 foreign import javascript unsafe "console.log($1)" console_log :: JSString -> IO ()
+foreign import javascript unsafe "(new Date()).getSeconds()" secondsNow :: IO (Word)
+foreign import javascript unsafe "$1[$2]" index :: Uint8ClampedArray -> Word -> IO (Word8)
 
 instance SteganographyContainerOptions CanvasPngImageType (WithPixelInfoType CanvasPngImage) where
   createContainer options imagedata = do
-    (canvas, context) <- unsafeIOToST $ do
+    (canvas, pixelData, size) <- unsafeIOToST $ do
         Just doc <- currentDocument
         body <- getBodyUnsafe doc
         img <- createElement doc "img" >>= unsafeCastTo HTMLImageElement
@@ -66,23 +69,23 @@ instance SteganographyContainerOptions CanvasPngImageType (WithPixelInfoType Can
               console_log $ toJSString $ T.concat [T.pack "Body contains img: ", T.pack $ show $ hasImg]
               when (hasImg) waitForImage
         waitForImage
-        return (canvas, context)
-    let image = (CanvasPngImage canvas context)
+        width <- Canvas.getWidth canvas
+        height <- Canvas.getHeight canvas
+        pixel <- Canvas.getImageData context 0 0 (fromIntegral width) (fromIntegral height)
+        pixelData <- ImageData.getData pixel
+        return (canvas, pixelData, (fromIntegral width, fromIntegral height, 4))
+    let image = (CanvasPngImage canvas pixelData size)
     state <- createCryptoState False image
     return $ Right $ WithPixelInfoType image state
 
 
 instance ImageContainer (CanvasPngImage) where
-  getBounds (CanvasPngImage canvas context) = (fromIntegral $ unsafePerformIO $ Canvas.getWidth canvas, fromIntegral $ unsafePerformIO $ Canvas.getHeight canvas, 3)
+  getBounds (CanvasPngImage _ _ size) = size
   getPixelLsb state pos = if ((getPixel state pos) .&. 1) == 1 then True else False
-  getPixel (CanvasPngImage canvas context) (x, y, c) = unsafePerformIO $ do
-    pixel <- Canvas.getImageData context (fromIntegral x) (fromIntegral y) 1 1
-    pixelData <- getData pixel
-    Just pixelData' <- fromJSVal $ unUint8ClampedArray pixelData :: IO (Maybe [Word])
-    let color = fromIntegral $ pixelData' !! (fromIntegral c)
-    console_log $ toJSString $ T.concat [T.pack "Read pixel: ", T.pack $ show $ color]
-    return $ color
-  withThawedImage = error "With thawed image not implemented"
+  getPixel (CanvasPngImage canvas pixels (width, _, colors)) (x, y, c) = unsafePerformIO $ do
+    color <- index pixels (fromIntegral y * fromIntegral width * fromIntegral colors + fromIntegral x * fromIntegral colors + fromIntegral c)
+    return $ fromIntegral color
+  withThawedImage (CanvasPngImage canvas pixels size) state func = error "With thawed image not implemented"
 
 instance MutableImageContainer MutableCanvasPngImage where
   getBoundsM = error "getBoundsM not implemented"
