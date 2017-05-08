@@ -64,9 +64,9 @@ encrypter = do
               Just doc <- currentDocument
               body <- fullScreenBody
               setTextContent body $ Just $ T.pack "Working"
-              encrytedData <- doEncrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 10 (t2lb hiddenData) (t2lb salt) (mt2lb maybeTargetKey) (mt2b maybeSignKey)
+              encrytedData <- doEncrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 2 (t2lb hiddenData) (t2lb salt) (mt2lb maybeTargetKey) (mt2b maybeSignKey)
               case encrytedData of
-                Right result -> setTextContent body $ Just $ T.pack $ LC8.unpack result
+                Right result -> appendDownloadLink body (T.pack "Download") (T.pack "image.png") $ LinkDataRaw $ T.pack $ LC8.unpack result
                 Left error -> setTextContent body $ Just $ T.pack error
               return ()
   return ()
@@ -84,9 +84,9 @@ decrypter = do
             Just doc <- currentDocument
             body <- fullScreenBody
             setTextContent body $ Just $ T.pack "Working"
-            decryptedData <- doDecrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 10 (t2lb salt) (mt2b maybePrivateKey) (mt2lb maybeSignedKey)
+            decryptedData <- doDecrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 2 (t2lb salt) (mt2b maybePrivateKey) (mt2lb maybeSignedKey)
             case decryptedData of
-              Right result -> setTextContent body $ Just $ T.pack $ LC8.unpack result
+              Right result -> appendDownloadLink body (T.pack "Download") (T.pack "") $ LinkData $ T.pack $ LC8.unpack result
               Left error -> setTextContent body $ Just $ T.pack error
             return ()
   return ()
@@ -102,9 +102,9 @@ generateKeys = do
                    newBody <- fullScreenBody
                    appendText newBody $ T.pack "Download these files. The secret file is yours and only yours and should NEVER be shared. The public key is the key you send to people you which to communicate with."
                    appendLineBreak newBody
-                   appendDownloadLink newBody (T.pack "Secret key") (T.pack "steganography_secret.sstk") $ T.pack $ C8.unpack $ encodeSecretKey secretKey
+                   appendDownloadLink newBody (T.pack "Secret key") (T.pack "steganography_secret.sstk") $ LinkData $ T.pack $ C8.unpack $ encodeSecretKey secretKey
                    appendLineBreak newBody
-                   appendDownloadLink newBody (T.pack "Public key") (T.pack "steganography_public.pstk") $ T.pack $ C8.unpack $ encodePublicKey publicKey
+                   appendDownloadLink newBody (T.pack "Public key") (T.pack "steganography_public.pstk") $ LinkData $ T.pack $ C8.unpack $ encodePublicKey publicKey
                    return ())]
   return ()
 

@@ -1,4 +1,4 @@
-module HelperFunctions (receiveFile, prompt, fullScreenBody, base64encode, base64decode, base64prefix, FileUploadOptions(..), defaultFileUploadOptions, appendLineBreak, showMenu, setTitle, appendText, appendDownloadLink) where
+module HelperFunctions (receiveFile, prompt, fullScreenBody, base64encode, base64decode, base64prefix, FileUploadOptions(..), defaultFileUploadOptions, appendLineBreak, showMenu, setTitle, appendText, appendDownloadLink, LinkData(..)) where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
@@ -54,10 +54,14 @@ data FileUploadOptions = FileUploadOptions { skipCaption :: Maybe T.Text, fileTy
 
 defaultFileUploadOptions = FileUploadOptions Nothing Nothing Nothing
 
+data LinkData = LinkData T.Text | LinkDataRaw T.Text
+
 appendDownloadLink at title filename content = do
   Just doc <- currentDocument
   downloadLink <- createElement doc "a" >>= unsafeCastTo HTMLAnchorElement
-  setHref downloadLink $ T.concat [base64prefix $ Just $ T.pack "application/octet-stream", base64encode content]
+  setHref downloadLink $ case content of
+                           LinkData text -> T.concat [base64prefix $ Just $ T.pack "application/octet-stream", base64encode text]
+                           LinkDataRaw text -> text
   setDownload downloadLink filename
   setTextContent downloadLink $ Just title
   appendChild at downloadLink
