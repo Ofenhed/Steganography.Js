@@ -2,26 +2,42 @@ function emscripten_ptr_to_haskell_ptr(ptr, /* optional */ length) {
   return h$wrapBuffer(Module.buffer, true, ptr, length);
 }
 
-function write_emscripten_ptr_to_haskell_ptr(e_ptr, h_ptr, length) {
-  h_ptr.u8.set(Module.HEAPU8.subarray(e_ptr, e_ptr + length));
+function write_emscripten_ptr_to_haskell_ptr(e_ptr, h_ptr) {
+  h_ptr.u8.set(Module.HEAPU8.subarray(e_ptr, e_ptr + h_ptr.len));
 }
 
 function ptr_(ptr, copy_before, copy_after) {
   if (ptr == null) {
     return [null];
   }
-  var ret = Runtime.stackAlloc(ptr.len);
+  var ret = Runtime.stackAlloc(ptr.len*2);
   if (copy_before) {
     Module.HEAPU8.set(ptr.u8, ret);
   }
   return copy_after ? [ret, function() {
-    write_emscripten_ptr_to_haskell_ptr(ret, ptr, ptr.len);
+    write_emscripten_ptr_to_haskell_ptr(ret, ptr);
   }] : [ret];
+}
+
+function heapptr_(ptr, copy_before, copy_after) {
+  if (ptr == null) {
+    return [null];
+  }
+  var ret = Module.allocate(ptr, 'i8')
+  return [ret, function() {
+    if (copy_after) {
+      write_emscripten_ptr_to_haskell_ptr(ret, ptr);
+    }
+    Module._free(ret);
+  }];
 }
 
 var c_ptr = function(x) { return ptr_(x, true, false); }
 var ptr = function(x) { return ptr_(x, true, true); }
 var o_ptr = function(x) { return ptr_(x, false, true); }
+var c_hptr = function(x) { return heapptr_(x, true, false); }
+var hptr = function(x) { return heapptr_(x, true, true); }
+var o_hptr = function(x) { return heapptr_(x, false, true); }
 var dc_ptr = c_ptr;
 
 function fwd(x) {
@@ -47,6 +63,9 @@ function runFunc(func, funcname, operations) {
   return function() {
     if (arguments.length != operations.length) {
       alert("Arguments missmatch for function " + funcname);
+    }
+    if (funcname == "cryptonite_aes_initkey" || funcname == "cryptonite_aes_encrypt_ctr") {
+      console.info(JSON.stringify(arguments))
     }
     var stackTop = Runtime.stackSave();
     var zipped = zipMap(arguments, operations);
@@ -95,7 +114,7 @@ h$cryptonite_aes_decrypt_cbc = runFunc(_cryptonite_aes_decrypt_cbc, "cryptonite_
 h$cryptonite_aes_encrypt_cbc = runFunc(_cryptonite_aes_encrypt_cbc, "cryptonite_aes_encrypt_cbc", [ptr, null, ptr, null, ptr, null, dc_ptr, null, fwd])
 h$cryptonite_aes_decrypt_ecb = runFunc(_cryptonite_aes_decrypt_ecb, "cryptonite_aes_decrypt_ecb", [ptr, null, ptr, null, c_ptr, null, fwd])
 h$cryptonite_aes_encrypt_ecb = runFunc(_cryptonite_aes_encrypt_ecb, "cryptonite_aes_encrypt_ecb", [ptr, null, ptr, null, c_ptr, null, fwd])
-h$cryptonite_aes_encrypt_ctr = runFunc(_cryptonite_aes_encrypt_ctr, "cryptonite_aes_encrypt_ctr", [ptr, null, ptr, null, ptr, null, ptr, null, fwd])
+h$cryptonite_aes_encrypt_ctr = runFunc(_cryptonite_aes_encrypt_ctr, "cryptonite_aes_encrypt_ctr", [o_hptr, null, c_hptr, null, c_hptr, null, c_hptr, null, fwd])
 h$cryptonite_aes_gcm_aad = runFunc(_cryptonite_aes_gcm_aad, "cryptonite_aes_gcm_aad", [ptr, null, c_ptr, null, fwd])
 h$cryptonite_aes_gcm_decrypt = runFunc(_cryptonite_aes_gcm_decrypt, "cryptonite_aes_gcm_decrypt", [ptr, null, ptr, null, ptr, null, c_ptr, null, fwd])
 h$cryptonite_aes_gcm_encrypt = runFunc(_cryptonite_aes_gcm_encrypt, "cryptonite_aes_gcm_encrypt", [ptr, null, ptr, null, ptr, null, c_ptr, null, fwd])

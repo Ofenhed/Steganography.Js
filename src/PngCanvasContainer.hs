@@ -89,11 +89,11 @@ pixelPos (width, _, colors) x y c = (fromIntegral y * fromIntegral width * fromI
 
 instance ImageContainer (CanvasPngImage) where
   getBounds (CanvasPngImage _ _ (width, height, colors)) = (width, height, colors - 1)
-  getPixelLsb state pos = let res = if ((getPixel state pos) .&. 1) == 1 then True else False in traceShow ("read", pos, res) res
+  getPixelLsb state pos = if ((getPixel state pos) .&. 1) == 1 then True else False
   getPixel (CanvasPngImage canvas pixels bounds) (x, y, c) = unsafePerformIO $ do
     pixels' <- ImageData.getData pixels
     color <- index pixels' $ pixelPos bounds x y c
-    return $ fromIntegral $ force $ traceShow ("salt", (x, y, c), color) color
+    return $ fromIntegral $ force $ color
   withThawedImage img@(CanvasPngImage canvas pixels _) state func = do
     result <- func $ WithPixelInfoTypeM (MutableCanvasPngImage img) state
     case result of
@@ -118,5 +118,4 @@ instance MutableImageContainer MutableCanvasPngImage where
       pixels' <- ImageData.getData pixels
       before <- index pixels' pos
       let after = change before
-      traceShowM ("write", (x, y, c), b)
       when (before /= after) $ indexSet pixels' pos after
