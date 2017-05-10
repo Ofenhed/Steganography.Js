@@ -112,8 +112,7 @@ instance MutableImageContainer MutableCanvasPngImage where
 
   setPixelLsb (MutableCanvasPngImage (CanvasPngImage canvas pixels bounds)) (x, y, c) b = do
     let pos = pixelPos bounds x y c
-        --change = (\old -> if b then old .|. 1 else old .&. complement 1)
-        change = (\old -> if b then complement 0 else 0)
+        change = (\old -> if b then old .|. 1 else old .&. complement 1)
     unsafeIOToST $ do
       pixels' <- ImageData.getData pixels
       before <- index pixels' pos
