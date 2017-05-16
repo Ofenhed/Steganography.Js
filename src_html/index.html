@@ -34,8 +34,9 @@ function loadWasm(callback) {
     xhr.responseType = 'arraybuffer';
     xhr.onload = function() {
       Module.wasmBinary = xhr.response;
+      Module.onRuntimeInitialized = callback;
 
-      importScript("cryptonite.js", callback)();
+      importScript("cryptonite.js")();
     };
     xhr.send(null);
   }

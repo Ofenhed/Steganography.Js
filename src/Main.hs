@@ -64,7 +64,7 @@ encrypter = do
               Just doc <- currentDocument
               body <- fullScreenBody
               setTextContent body $ Just $ T.pack "Working"
-              encrytedData <- doEncrypt (t2lb imageData) CanvasPngImageSpawnerFast (t2lb keyData) 2 (t2lb hiddenData) (t2lb salt) (mt2lb maybeTargetKey) (mt2b maybeSignKey)
+              encrytedData <- doEncrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 5 (t2lb hiddenData) (t2lb salt) (mt2lb maybeTargetKey) (mt2b maybeSignKey)
               case encrytedData of
                 Right result -> appendDownloadLink body (T.pack "Download") (T.pack "image.png") $ LinkDataRaw $ T.pack $ LC8.unpack result
                 Left error -> setTextContent body $ Just $ T.pack error
@@ -84,7 +84,7 @@ decrypter = do
             Just doc <- currentDocument
             body <- fullScreenBody
             setTextContent body $ Just $ T.pack "Working"
-            decryptedData <- doDecrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 2 (t2lb salt) (mt2b maybePrivateKey) (mt2lb maybeSignedKey)
+            decryptedData <- doDecrypt (t2lb imageData) CanvasPngImageSpawner (t2lb keyData) 5 (t2lb salt) (mt2b maybePrivateKey) (mt2lb maybeSignedKey)
             case decryptedData of
               Right result -> appendDownloadLink body (T.pack "Download") (T.pack "") $ LinkData $ T.pack $ LC8.unpack result
               Left error -> setTextContent body $ Just $ T.pack error

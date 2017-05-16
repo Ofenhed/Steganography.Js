@@ -23,18 +23,26 @@ function heapptr_(ptr, copy_before, copy_after) {
   if (ptr == null) {
     return [null];
   }
-  var ret = Module.allocate(ptr, 'i8');
+  var ret = Module.allocate(ptr.u8, 'i8', ALLOC_NORMAL);
+  if (ret == 0) {
+    throw "Failed to allocate " + ptr.len + " bytes";
+  }
   return [ret, function() {
     if (copy_after) {
       write_emscripten_ptr_to_haskell_ptr(ret, ptr);
-    }
+    } /*else {
+      var other = Module.HEAPU8.subarray(ret, ret + ptr.len);
+      if (other != ptr.u8) {
+        console.error("Data has changed");
+      }
+    }*/
     Module._free(ret);
   }];
 }
 
 var c_ptr = function(x) { return heapptr_(x, true, false); }
 var ptr = function(x) { return heapptr_(x, true, true); }
-var o_ptr = function(x) { return ptr_(x, false, true); }
+var o_ptr = function(x) { return heapptr_(x, false, true); }
 var dc_ptr = c_ptr;
 
 function fwd(x) {
