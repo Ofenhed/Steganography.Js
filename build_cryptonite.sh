@@ -1,7 +1,28 @@
-#EXPORTED_FUNCTIONS="['_cryptonite_aes_decrypt_cbc','_cryptonite_aes_decrypt_ecb','_cryptonite_aes_encrypt_cbc','_cryptonite_aes_encrypt_ctr','_cryptonite_aes_encrypt_ecb','_cryptonite_aes_gcm_aad','_cryptonite_aes_gcm_decrypt','_cryptonite_aes_gcm_encrypt','_cryptonite_aes_gcm_finish','_cryptonite_aes_gcm_init','_cryptonite_aes_initkey','_cryptonite_aes_ocb_aad','_cryptonite_aes_ocb_decrypt','_cryptonite_aes_ocb_encrypt','_cryptonite_aes_ocb_finish','_cryptonite_aes_ocb_init','_cryptonite_blake2b_finalize','_cryptonite_blake2b_init','_cryptonite_blake2b_update','_cryptonite_cpu_has_rdrand','_cryptonite_curve25519_donna','_cryptonite_ed25519_publickey','_cryptonite_ed25519_sign','_cryptonite_ed25519_sign_open','_cryptonite_get_rand_bytes','_cryptonite_sha1_finalize','_cryptonite_sha1_init','_cryptonite_sha1_update','_cryptonite_sha3_finalize','_cryptonite_sha3_init','_cryptonite_sha3_update','_cryptonite_sha512_finalize','_cryptonite_sha512_init','_cryptonite_sha512_update','_cryptonite_skein512_finalize','_cryptonite_skein512_init','_cryptonite_skein512_update']"
+#!/bin/bash
+
+EXPORT_FILE=cbits/exported.txt
+
+if [ ! -f "$EXPORT_FILE" ] || [ $# -ne 0 ] ; then
+  if [ $# -eq 0 ] ; then
+    echo "Usage: $0 all.js"
+    echo "The all.js is the file compiled by ghcjs"
+    exit 1
+  fi
+  find cbits/ -name \*.[ch] -exec ctags --c-types=fp {} \+
+  ALL_FUNCTIONS=$(awk '{ print $1 }' tags | sort -u)
+  echo -n > $EXPORT_FILE
+  for FUNCTION in $ALL_FUNCTIONS ; do
+    if grep "h\$$FUNCTION(" $1 > /dev/null ; then
+      echo "$FUNCTION" >> "$EXPORT_FILE"
+    fi
+  done
+  echo "$EXPORT_FILE created, manually verify that all functions are correct before continuing."
+  exit 0
+fi
+
 EXPORTED_FUNCTIONS=""
-#for FUNC in $(cat cbits/exported.txt && cat ../zlib-0.6.1.2/exported.txt) ; do
-for FUNC in $(cat cbits/exported.txt) ; do
+
+for FUNC in $(cat $EXPORT_FILE) ; do
   if [ "$EXPORTED_FUNCTIONS" == "" ] ; then
     EXPORTED_FUNCTIONS="["
   else
@@ -13,9 +34,7 @@ EXPORTED_FUNCTIONS+="]"
 
 FLAGS="-s EXPORTED_FUNCTIONS=$EXPORTED_FUNCTIONS -msse3 -O2 -msse -msse2 -msse3 -s SIMD=1 -s ASSERTIONS=1 -s TOTAL_MEMORY=1006632960"
 CFLAGS="$FLAGS -DWITH_ASSERT_ALIGNMENT -DARCH_X86 -DSUPPORT_SSE -DWITH_PCLMUL" #" # -DWITH_AESNI" # 
-LDFLAGS="$FLAGS -s STACK_OVERFLOW_CHECK=1" # -s BINARYEN_METHOD='native-wasm,asmjs' -s BINARYEN=1"
-
-echo ${EXPORTED_FUNCTIONS}
+LDFLAGS="$FLAGS -s STACK_OVERFLOW_CHECK=1 -s NO_EXIT_RUNTIME=1" # -s BINARYEN_METHOD='native-wasm,asmjs' -s BINARYEN=1"
 
 CC="emcc -c -I cbits/ $CFLAGS"
 $CC cbits/ed25519/*.c cbits/cryptonite_sha512.c && \
