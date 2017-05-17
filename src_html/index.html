@@ -48,10 +48,11 @@ function loadWasm(callback) {
     xhr.send(null);
   }
 }
-importScript(["rts.js", "lib.js", "random.js", "out.js"],
+importScript("rts.js",
+  importScript(["lib.js", "random.js", "out.js"],
         loadWasm(
           importScript("ghcjs_emscripten_bindings.js",
-            importScript("runmain.js"))))();
+            importScript("runmain.js")))))();
 })();
   </script>
   </head>
