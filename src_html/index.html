@@ -15,13 +15,20 @@ var importScript = (function (oHead) {
   }
 
   return function (sSrc, fOnload) {
+    if (typeof sSrc === "string") sSrc = [sSrc];
+    var callback = function() {
+      if (--callback.counter == 0) fOnload();
+    }
+    callback.counter = sSrc.length;
     return function() {
-      var oScript = document.createElement("script");
-      oScript.type = "text/javascript";
-      oScript.onerror = loadError;
-      if (fOnload) { oScript.onload = fOnload }
-      oHead.appendChild(oScript);
-      oScript.src = sSrc;
+      for (var source in sSrc) {
+        var oScript = document.createElement("script");
+        oScript.type = "text/javascript";
+        oScript.onerror = loadError;
+        if (fOnload) { oScript.onload = callback }
+        oHead.appendChild(oScript);
+        oScript.src = sSrc[source];
+      }
     }
   }
 
@@ -41,13 +48,10 @@ function loadWasm(callback) {
     xhr.send(null);
   }
 }
-importScript("rts.js",
-  importScript("lib.js",
-    importScript("random.js",
-      importScript("out.js",
+importScript(["rts.js", "lib.js", "random.js", "out.js"],
         loadWasm(
           importScript("ghcjs_emscripten_bindings.js",
-            importScript("runmain.js")))))))();
+            importScript("runmain.js"))))();
 })();
   </script>
   </head>
