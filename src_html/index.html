@@ -5,72 +5,72 @@
           content="width=device-width, initial-scale=1.0, user-scalable=no">    <meta charset="utf-8">
   <script language="javascript">
 (function() {
-function loadError() {
-  alert("Failed to load some of the code needed to run this application. Please try again.");
-}
-function multiDependencyCallback(callback) {
-  var c = function() {
-    if (--c.counter == 0) callback();
+  function loadError() {
+    alert("Failed to load some of the code needed to run this application. Please try again.");
   }
-  c.counter = 1;
-  var s = {}
-  s.activate = function() {
-    delete s.activate;
-    delete s.add;
-    c();
+  function multiDependencyCallback(callback) {
+    var c = function() {
+      if (--c.counter == 0) callback();
+    }
+    c.counter = 1;
+    var s = {}
+    s.activate = function() {
+      delete s.activate;
+      delete s.add;
+      c();
+    }
+    s.add = function() {
+      ++c.counter;
+      return c;
+    }
+    return s;
   }
-  s.add = function() {
-    ++c.counter;
-    return c;
-  }
-  return s;
-}
-var importScript = (function (oHead) {
+  var importScript = (function (oHead) {
 
-  function loadError (oError) {
-    throw new URIError("The script " + oError.target.src + " is not accessible.");
-  }
+    function loadError (oError) {
+      throw new URIError("The script " + oError.target.src + " is not accessible.");
+    }
 
-  return function (sSrc, fOnload) {
-    if (typeof sSrc === "string") sSrc = [sSrc];
-    var callback = multiDependencyCallback(fOnload);
-    return function() {
-      for (var source in sSrc) {
-        var oScript = document.createElement("script");
-        oScript.type = "text/javascript";
-        oScript.onerror = loadError;
-        if (fOnload) { oScript.onload = callback.add() }
-        oHead.appendChild(oScript);
-        oScript.src = sSrc[source];
+    return function (sSrc, fOnload) {
+      if (typeof sSrc === "string") sSrc = [sSrc];
+      var callback = multiDependencyCallback(fOnload);
+      return function() {
+        for (var source in sSrc) {
+          var oScript = document.createElement("script");
+          oScript.type = "text/javascript";
+          oScript.onerror = loadError;
+          if (fOnload) { oScript.onload = callback.add() }
+          oHead.appendChild(oScript);
+          oScript.src = sSrc[source];
+        }
+        if (fOnload) callback.activate();
       }
-      if (fOnload) callback.activate();
+    }
+
+  })(document.head || document.getElementsByTagName("head")[0]);
+  function loadWasm(callback) {
+    return function() {
+      if (typeof Module === 'undefined') Module = {}
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', 'cryptonite.wasm', true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onerror = loadError;
+      xhr.onload = function() {
+        Module.wasmBinary = xhr.response;
+        Module.onRuntimeInitialized = callback;
+
+        importScript("cryptonite.js")();
+      };
+      xhr.send(null);
     }
   }
-
-})(document.head || document.getElementsByTagName("head")[0]);
-function loadWasm(callback) {
-  return function() {
-    if (typeof Module === 'undefined') Module = {}
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'cryptonite.wasm', true);
-    xhr.responseType = 'arraybuffer';
-    xhr.onerror = loadError;
-    xhr.onload = function() {
-      Module.wasmBinary = xhr.response;
-      Module.onRuntimeInitialized = callback;
-
-      importScript("cryptonite.js")();
-    };
-    xhr.send(null);
-  }
-}
-var doBindings = multiDependencyCallback(function() {
-  init_ghcjs_emscripten_bindings();
-  h$main(h$mainZCZCMainzimain);
-});
-importScript(["rts.js", "lib.js", "random.js", "out.js", "ghcjs_emscripten_bindings.js"], doBindings.add())();
-loadWasm(doBindings.add())();
-doBindings.activate();
+  var doBindings = multiDependencyCallback(function() {
+    init_ghcjs_emscripten_bindings();
+    h$main(h$mainZCZCMainzimain);
+  });
+  importScript(["rts.js", "lib.js", "random.js", "out.js", "ghcjs_emscripten_bindings.js"], doBindings.add())();
+  loadWasm(doBindings.add())();
+  doBindings.activate();
 })();
   </script>
   </head>
