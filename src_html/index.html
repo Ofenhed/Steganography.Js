@@ -64,8 +64,11 @@ function loadWasm(callback) {
     xhr.send(null);
   }
 }
-var doBindings = multiDependencyCallback(importScript("ghcjs_emscripten_bindings.js", function() {h$main(h$mainZCZCMainzimain)}));
-importScript(["rts.js", "lib.js", "random.js", "out.js"], doBindings.add())();
+var doBindings = multiDependencyCallback(function() {
+  init_ghcjs_emscripten_bindings();
+  h$main(h$mainZCZCMainzimain);
+});
+importScript(["rts.js", "lib.js", "random.js", "out.js", "ghcjs_emscripten_bindings.js"], doBindings.add())();
 loadWasm(doBindings.add())();
 doBindings.activate();
 })();

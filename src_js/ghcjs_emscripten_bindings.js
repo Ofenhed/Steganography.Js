@@ -1,4 +1,4 @@
-(function() {
+function init_ghcjs_emscripten_bindings() {
 function emscripten_ptr_to_haskell_ptr(ptr, /* optional */ length) {
   return h$wrapBuffer(Module.buffer, true, ptr, length);
 }
@@ -97,4 +97,4 @@ h$cryptonite_sha512_update = runFunc(_cryptonite_sha512_update, "cryptonite_sha5
 h$cryptonite_skein512_finalize = runFunc(_cryptonite_skein512_finalize, "cryptonite_skein512_finalize", [dc_ptr, null, fwd, o_ptr, null])
 h$cryptonite_skein512_init = runFunc(_cryptonite_skein512_init, "cryptonite_skein512_init", [o_ptr, null, fwd])
 h$cryptonite_skein512_update = runFunc(_cryptonite_skein512_update, "cryptonite_skein512_update", [ptr, null, c_ptr, null, fwd])
-})();
+};
