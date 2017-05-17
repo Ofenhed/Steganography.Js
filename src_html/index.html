@@ -64,8 +64,7 @@ function loadWasm(callback) {
     xhr.send(null);
   }
 }
-var doBindings = multiDependencyCallback(importScript("ghcjs_emscripten_bindings.js",
-                                           importScript("runmain.js")), function() {alert("Loaded!");});
+var doBindings = multiDependencyCallback(importScript("ghcjs_emscripten_bindings.js", function() {h$main(h$mainZCZCMainzimain)}));
 importScript(["rts.js", "lib.js", "random.js", "out.js"], doBindings.add())();
 loadWasm(doBindings.add())();
 doBindings.activate();
