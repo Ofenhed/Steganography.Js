@@ -38,7 +38,9 @@ function heapptr_(ptr, copy_before, copy_after) {
 
 var c_ptr = function(x) { return heapptr_(x, true, false); }
 var ptr = function(x) { return heapptr_(x, true, true); }
-var o_ptr = function(x) { return ptr_(x, false, true); }
+var o_ptr = function(x) { return heapptr_(x, false, true); }
+c_ptr = ptr;
+o_ptr = ptr;
 var dc_ptr = c_ptr;
 
 function fwd(x) {
@@ -57,7 +59,7 @@ function zipMap(a, b) {
       }
       arr.push(res[0]);
     }
-  return [arr, function() { for (var f in finalizer.reverse()) finalizer[f]() }];
+  return [arr, function() { for (var f in finalizer) finalizer[f]() }];
 }
 
 function runFunc(func, funcname, operations) {

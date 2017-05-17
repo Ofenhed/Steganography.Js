@@ -1,3 +1,4 @@
+(function() {
 function stringToUint(string) {
   if (typeof this.encoder !== "undefined") {
     return this.encoder.encode(string);
@@ -25,7 +26,7 @@ function uintToString(uintArray) {
   var decodedString = String.fromCharCode.apply(null, uintArray);
   return decodedString;
 }
-var MyRandom = {
+MyRandom = {
   sha512: function(data) {
     var stackTop = Runtime.stackSave();
     var state = Runtime.stackAlloc(256);
@@ -100,3 +101,4 @@ h$cryptonite_get_rand_bytes = function(ptr, ignore, count) {
   }
   return count;
 }
+})();
