@@ -50,17 +50,16 @@
   })(document.head || document.getElementsByTagName("head")[0]);
   function loadWasm(callback) {
     return function() {
-      if (typeof Module === 'undefined') Module = {}
       var xhr = new XMLHttpRequest();
       xhr.open('GET', 'cryptonite.wasm', true);
       xhr.responseType = 'arraybuffer';
       xhr.onerror = loadError;
-      xhr.onload = function() {
-        Module.wasmBinary = xhr.response;
-        Module.onRuntimeInitialized = callback;
-
-        importScript("cryptonite.js")();
-      };
+      xhr.onload = importScript("cryptonite.js", function() {
+          var myModule = {}
+          myModule.wasmBinary = xhr.response;
+          myModule.onRuntimeInitialized = callback;
+          Module = Module(myModule);
+        });
       xhr.send(null);
     }
   }
@@ -68,7 +67,7 @@
     init_ghcjs_emscripten_bindings();
     h$main(h$mainZCZCMainzimain);
   });
-  importScript(["rts.js", "lib.js", "random.js", "out.js", "ghcjs_emscripten_bindings.js"], doBindings.add())();
+  importScript(["all.js", "random.js", "ghcjs_emscripten_bindings.js"], doBindings.add())();
   loadWasm(doBindings.add())();
   doBindings.activate();
 })();

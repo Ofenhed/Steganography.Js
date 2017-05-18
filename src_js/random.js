@@ -28,28 +28,28 @@
   }
   MyRandom = {
     sha512: function(data) {
-      var stackTop = Runtime.stackSave();
-      var state = Runtime.stackAlloc(256);
+      var stackTop = Module.Runtime.stackSave();
+      var state = Module.Runtime.stackAlloc(256);
       var maxlength = 0;
       for (var key in data) {
         if (data[key].length > maxlength) {
           maxlength = data[key].length + 1;
         }
       }
-      var stackData = Runtime.stackAlloc(maxlength);
-      var returnedData = Runtime.stackAlloc(64);
-      _cryptonite_sha512_init(state);
+      var stackData = Module.Runtime.stackAlloc(maxlength);
+      var returnedData = Module.Runtime.stackAlloc(64);
+      Module._cryptonite_sha512_init(state);
       for (var key in data) {
         var current = data[key];
         if (typeof current === "string") {
           current = stringToUint(current);
         }
         Module.HEAPU8.set(current, stackData);
-        _cryptonite_sha512_update(state, stackData, data[key].length);
+        Module._cryptonite_sha512_update(state, stackData, data[key].length);
       }
-      _cryptonite_sha512_finalize(state, returnedData);
+      Module._cryptonite_sha512_finalize(state, returnedData);
       var ret = Module.HEAPU8.subarray(returnedData, returnedData + 64);
-      Runtime.stackRestore(stackTop);
+      Module.Runtime.stackRestore(stackTop);
       return ret;
     },
     getBrowserRandom: function(target) {
