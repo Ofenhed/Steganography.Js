@@ -26,6 +26,7 @@ function init_random(Module) {
     var decodedString = String.fromCharCode.apply(null, uintArray);
     return decodedString;
   }
+  // Sha512 stuff, including temporary state and temporary input buffer
   var sha512_state = Module.allocate(new Uint8Array(256), 'i8', Module.ALLOC_NORMAL);
   var currentInputStateLength = 1024;
   var currentInputState = Module.allocate(new Uint8Array(currentInputStateLength), 'i8', Module.ALLOC_NORMAL);
@@ -62,8 +63,11 @@ function init_random(Module) {
       }
       Module._cryptonite_sha512_finalize(sha512_state, out);
   }
+  // resultMem, an allocated buffer for getting the result from sha512
   var resultMem = Module.allocate(new Uint8Array(64), 'i8', Module.ALLOC_NORMAL);
+  // state holds the current "random" state
   var state = Module.allocate(new Uint8Array(64), 'i8', Module.ALLOC_NORMAL);
+  // tmpSaltRandom is simply a buffer to avoid it being allocated every time salt is added
   var tmpSaltRandom = new Uint8Array(64);
   var MyRandom = {
     getBrowserRandom: function(target) {
@@ -96,9 +100,8 @@ function init_random(Module) {
       }
     },
     addSalt: function(salt) {
-      var tmpSaltRandom = new Uint8Array(64);
       this.getBrowserRandom(tmpSaltRandom);
-      var time = window.performance.now ? "" + window.performance.now() : "";
+      var time = window.performance.now ? "" + window.performance.now() : new Date().toString();
       var newState = [salt, [state, 64], tmpSaltRandom, time];
       sha512(newState, state);
     }
