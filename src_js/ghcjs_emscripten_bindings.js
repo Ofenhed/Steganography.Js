@@ -1,74 +1,59 @@
 function init_ghcjs_emscripten_bindings(Module) {
-  var dataBufferLength = 1024*1024;
+  var dataBufferLength = 32;
   var dataBuffer = Module.allocate(dataBufferLength, 'i8', Module.ALLOC_NORMAL);
   var dataBufferUsed = 0;
-  function assertDataBufferSize(size) {
-    if (size > dataBufferLength) {
-      Module._free(dataBuffer);
-      dataBuffer = Module.allocate(dataBufferLength = size, 'i8', Module.ALLOC_NORMAL);
+  function increaseBufferSizeByAtLeast(size) {
+    let newDataBuffer = Module.allocate(dataBufferLength = 2**Math.ceil(Math.log2(dataBufferLength + size)), 'i8', Module.ALLOC_NORMAL);
+    if (dataBufferUsed) {
+      var sub = Module.HEAPU8.slice(dataBuffer, dataBuffer + dataBufferUsed);
+      Module.HEAPU8.set(sub, newDataBuffer);
     }
-    return dataBuffer;
+    Module._free(dataBuffer);
+    dataBuffer = newDataBuffer;
   }
   function emscripten_ptr_to_haskell_ptr(ptr, /* optional */ length) {
     return h$wrapBuffer(Module.buffer, true, ptr, length);
   }
 
   function write_emscripten_ptr_to_haskell_ptr(e_ptr, h_ptr) {
-    h_ptr.u8.set(Module.HEAPU8.subarray(e_ptr, e_ptr + h_ptr.len));
+    var sub = Module.HEAPU8.subarray(e_ptr, e_ptr + h_ptr.u8.length);
+    h_ptr.u8.set(sub);
+  }
+
+  function write_haskell_ptr_to_emscripten_ptr(h_ptr, e_ptr, length) {
+    if (typeof length === "number") {
+      Module.HEAPU8.set(h_ptr.u8, e_ptr, e_ptr + length);
+    } else {
+      Module.HEAPU8.set(h_ptr.u8, e_ptr);
+    }
   }
 
   function ptr_(ptr, copy_before, copy_after) {
     if (ptr == null) {
       return [0, null];
     }
-    var ret = Module.Runtime.stackAlloc(ptr.len);
-    if (copy_before) {
-      Module.HEAPU8.set(ptr.u8, ret);
-    }
-    return copy_after ? [ptr.length, ret, function() {
-      write_emscripten_ptr_to_haskell_ptr(ret, ptr);
-    }] : [ptr.length, ret];
-  }
-
-  function heapptr_(ptr, copy_before, copy_after) {
-    if (ptr == null) {
-      return [0, null];
-    }
-    var ret = Module.allocate(ptr.u8, 'i8', Module.ALLOC_NORMAL);
-    if (ret == 0) {
-      throw "Failed to allocate " + ptr.len + " bytes";
-    }
-    return [ptr.length, ret, function() {
-      if (copy_after) {
-        write_emscripten_ptr_to_haskell_ptr(ret, ptr);
-      }
-      Module._free(ret);
-    }];
-  }
-
-  function dbptr(ptr, copy_before, copy_after) {
-    if (ptr == null) {
-      return [0, null];
-    }
     var ret = dataBuffer + dataBufferUsed;
+    if (dataBufferUsed + ptr.u8.length > dataBufferLength) {
+      increaseBufferSizeByAtLeast(ptr.u8.length);
+    }
     dataBufferUsed += ptr.u8.length;
     if (copy_before) {
-      Module.HEAPU8.set(ptr.u8, ret);
+      write_haskell_ptr_to_emscripten_ptr(ptr, ret);
     }
     return copy_after ? [ptr.u8.length, ret, function() {
       write_emscripten_ptr_to_haskell_ptr(ret, ptr);
     }] : [ptr.u8.length, ret];
   }
 
-  var c_ptr = function(x) { return dbptr(x, true, false); }
-  var ptr = function(x) { return dbptr(x, true, true); }
-  var o_ptr = function(x) { return dbptr(x, false, true); }
+  var c_ptr = function(x) { return ptr_(x, true, false); }
+  var ptr = function(x) { return ptr_(x, true, true); }
+  var o_ptr = function(x) { return ptr_(x, false, true); }
   c_ptr = ptr;
   o_ptr = ptr;
   var dc_ptr = c_ptr;
 
   function fwd(x) {
-    return [x];
+    return [0, x];
   }
 
 
@@ -93,9 +78,8 @@ function init_ghcjs_emscripten_bindings(Module) {
       if (arguments.length != operations.length) {
         alert("Arguments missmatch for function " + funcname);
       }
-      var zipped = zipMap(arguments, operations);
       dataBufferUsed = 0;
-      assertDataBufferSize(zipped[0]);
+      var zipped = zipMap(arguments, operations);
       var ret = func.apply(this, zipped[1]);
       zipped[2]();
       return ret;
