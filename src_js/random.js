@@ -1,4 +1,4 @@
-(function() {
+function init_random(Module) {
   function stringToUint(string) {
     if (typeof this.encoder !== "undefined") {
       return this.encoder.encode(string);
@@ -26,32 +26,46 @@
     var decodedString = String.fromCharCode.apply(null, uintArray);
     return decodedString;
   }
-  MyRandom = {
-    sha512: function(data) {
-      var stackTop = Module.Runtime.stackSave();
-      var state = Module.Runtime.stackAlloc(256);
+  var sha512_state = Module.allocate(new Uint8Array(256), 'i8', Module.ALLOC_NORMAL);
+  var currentInputStateLength = 1024;
+  var currentInputState = Module.allocate(new Uint8Array(currentInputStateLength), 'i8', Module.ALLOC_NORMAL);
+  function assertInputBufLength(length) {
+    if (length > currentInputState) {
+      Module._free(currentInputState);
+      currentInputState = Module.alloc(new Uint8Array(currentInputStateLength = length), 'i8', Module.ALLOC_NORMAL);
+    }
+    return currentInputState;
+  }
+  function sha512(data, out) {
       var maxlength = 0;
       for (var key in data) {
         if (data[key].length > maxlength) {
           maxlength = data[key].length + 1;
         }
       }
-      var stackData = Module.Runtime.stackAlloc(maxlength);
-      var returnedData = Module.Runtime.stackAlloc(64);
-      Module._cryptonite_sha512_init(state);
+      Module._cryptonite_sha512_init(sha512_state);
       for (var key in data) {
         var current = data[key];
-        if (typeof current === "string") {
-          current = stringToUint(current);
+        if (typeof current === "object" &&
+            current.length == 2 &&
+            typeof current[0] === "number" &&
+            typeof current[1] === "number") {
+          Module._cryptonite_sha512_update(sha512_state, current[0], current[1]);
+        } else {
+          if (typeof current === "string") {
+            current = stringToUint(current);
+          }
+          assertInputBufLength(current.length);
+          Module.HEAPU8.set(current, currentInputState);
+          Module._cryptonite_sha512_update(sha512_state, currentInputState, data[key].length);
         }
-        Module.HEAPU8.set(current, stackData);
-        Module._cryptonite_sha512_update(state, stackData, data[key].length);
       }
-      Module._cryptonite_sha512_finalize(state, returnedData);
-      var ret = Module.HEAPU8.subarray(returnedData, returnedData + 64);
-      Module.Runtime.stackRestore(stackTop);
-      return ret;
-    },
+      Module._cryptonite_sha512_finalize(sha512_state, out);
+  }
+  var resultMem = Module.allocate(new Uint8Array(64), 'i8', Module.ALLOC_NORMAL);
+  var state = Module.allocate(new Uint8Array(64), 'i8', Module.ALLOC_NORMAL);
+  var tmpSaltRandom = new Uint8Array(64);
+  var MyRandom = {
     getBrowserRandom: function(target) {
       if (window.crypto && window.crypto.getRandomValues) {
         window.crypto.getRandomValues(target);
@@ -60,13 +74,13 @@
         alert("This browser doesn't provide any cryptographically secure random.");
       }
     },
-    state: new Uint8Array(64),
     getSingleRandom: function() {
       var newRandom = new Uint8Array(64);
       this.getBrowserRandom(newRandom);
-      var result = this.sha512(["outp", this.state, newRandom]);
-      this.state.set(this.sha512(["stat", this.state, newRandom]));
-      return result;
+      sha512(["outp", [state, 64], newRandom], resultMem);
+      sha512(["stat", [state, 64], newRandom], state);
+      newRandom.set(Module.HEAPU8.subarray(resultMem, resultMem + 64));
+      return newRandom;
     },
     getRandom: function(target) {
       if (typeof target === "number") {
@@ -82,11 +96,11 @@
       }
     },
     addSalt: function(salt) {
-      var newRandom = new Uint8Array(64);
-      this.getBrowserRandom(newRandom);
+      var tmpSaltRandom = new Uint8Array(64);
+      this.getBrowserRandom(tmpSaltRandom);
       var time = window.performance.now ? "" + window.performance.now() : "";
-      var newState = [salt, this.state, newRandom, time];
-      this.state.set(this.sha512(newState));
+      var newState = [salt, [state, 64], tmpSaltRandom, time];
+      sha512(newState, state);
     }
   }
 
@@ -101,4 +115,5 @@
     }
     return count;
   }
-})();
+  return MyRandom;
+}

@@ -64,7 +64,8 @@
     }
   }
   var doBindings = multiDependencyCallback(function() {
-    init_ghcjs_emscripten_bindings();
+    MyRandom = init_random(Module);
+    init_ghcjs_emscripten_bindings(Module);
     h$main(h$mainZCZCMainzimain);
   });
   importScript(["all.js", "random.js", "ghcjs_emscripten_bindings.js"], doBindings.add())();

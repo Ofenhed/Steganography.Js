@@ -1,4 +1,4 @@
-function init_ghcjs_emscripten_bindings() {
+function init_ghcjs_emscripten_bindings(Module) {
   function emscripten_ptr_to_haskell_ptr(ptr, /* optional */ length) {
     return h$wrapBuffer(Module.buffer, true, ptr, length);
   }
